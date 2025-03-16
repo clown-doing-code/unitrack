@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Icons } from "../icons";
 import Link from "next/link";
 import { useState } from "react";
@@ -22,12 +21,89 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { signUpSchema } from "@/lib/schema-validation";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import LoadingButton from "../loading-btn";
+import { authClient } from "@/lib/auth-client";
+import { useToast } from "@/hooks/use-toast";
 
 export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
   const [showDialog, setShowDialog] = useState(false);
+  const [pending, setPending] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<z.infer<typeof signUpSchema>>({
+    resolver: zodResolver(signUpSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const onSubmit = async (values: z.infer<typeof signUpSchema>) => {
+    await authClient.signUp.email(
+      {
+        email: values.email,
+        password: values.password,
+        name: values.name,
+      },
+      {
+        onRequest: () => {
+          setPending(true);
+        },
+        onSuccess: () => {
+          toast({
+            variant: "success",
+            title: "¡Bienvenido al club de los desesperados!",
+            description:
+              "Tu cuenta ha sido creada. Revisa tu email para el link de verificación... si es que recuerdas revisar tu correo más que tus redes sociales.",
+          });
+        },
+        onError: (ctx) => {
+          console.log("error", ctx);
+
+          // Mensajes personalizados según el tipo de error
+          let errorMessage =
+            "El sistema está tan confundido como tú en un examen sorpresa.";
+
+          if (ctx.error.message?.includes("email")) {
+            errorMessage =
+              "Ese email ya existe o es tan inválido como tus excusas para no entregar la tarea a tiempo.";
+          } else if (ctx.error.message?.includes("password")) {
+            errorMessage =
+              "Tu contraseña es tan débil como tu voluntad para estudiar el fin de semana.";
+          } else if (ctx.error.message?.includes("network")) {
+            errorMessage =
+              "Tu conexión falló. ¿También usas el WiFi de la cafetería de la universidad?";
+          }
+
+          toast({
+            variant: "destructive",
+            title: "¡Oops! Algo salió terriblemente mal",
+            description: ctx.error.message
+              ? errorMessage
+              : "Algo salió mal. Igual que tus planes de estudiar con anticipación.",
+          });
+        },
+      },
+    );
+    setPending(false);
+  };
 
   return (
     <div className={cn("grid gap-6", className)} {...props}>
@@ -60,33 +136,83 @@ export function SignUpForm({
               </span>
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="email">Correo electrónico</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="estudiante@procrastinar.edu"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="password">Contraseña</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Algo más creativo que '12345678'"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="confirm-password">Confirmar contraseña</Label>
-            <Input
-              id="confirm-password"
-              type="password"
-              placeholder="¡Que no sea '12345678'!"
-            />
-          </div>
-          <Button className="w-full" onClick={() => setShowDialog(true)}>
-            Continuar hacia la inevitable deuda estudiantil
-          </Button>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Juan Pérez" {...field} />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Correo electrónico</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="estudiante@procrastinar.edu"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contraseña</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="Algo más creativo que '12345678'"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirmar contraseña</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="password"
+                        placeholder="¡Que no sea '12345678'!"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="pt-4">
+                <LoadingButton pending={pending}>
+                  Acepto mi destino académico
+                </LoadingButton>
+              </div>
+            </form>
+          </Form>
         </CardContent>
         <CardFooter className="border-t border-border pt-4 text-center text-xs text-muted-foreground">
           <div className="w-full text-sm">
@@ -118,7 +244,7 @@ export function SignUpForm({
         .
       </div>
 
-      {/* Diálogo de aceptación de términos */}
+      {/* Diálogo de aceptación de términos
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
@@ -158,15 +284,15 @@ export function SignUpForm({
             </p>
           </div>
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-            <Button onClick={() => setShowDialog(false)}>
+            <Button type="button" onClick={() => setShowDialog(false)}>
               Déjame leer los términos (mentira)
             </Button>
-            <Button onClick={() => setShowDialog(false)}>
+            <LoadingButton pending={pending} onClick={handleConfirmSubmit}>
               Acepto mi destino académico
-            </Button>
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog> */}
     </div>
   );
 }

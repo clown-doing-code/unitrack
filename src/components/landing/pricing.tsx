@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { Separator } from "../ui/separator";
+import ColorNote from "../color-note";
 
 // Define el tipo para las props del componente ColorNote
 type ColorNoteProps = {
@@ -28,27 +29,6 @@ type ColorNoteProps = {
   icon?: LucideIcon; // Hacemos el icono opcional con '?'
   title?: string; // Hacemos el título opcional con '?'
   children: React.ReactNode;
-};
-
-// Componente para notas con colores
-const ColorNote = ({ color, icon, title, children }: ColorNoteProps) => {
-  const Icon = icon || AlertCircle;
-
-  return (
-    <Card
-      className={`border-${color}-200 bg-${color}-50 dark:bg-${color}-900/30 dark:border-${color}-900/30`}
-    >
-      <CardContent className="p-3">
-        <div className="flex items-start gap-2">
-          <Icon className={`mt-0.5 h-5 w-5 text-${color}-500 flex-shrink-0`} />
-          <p className="text-sm">
-            {title && <strong>{title}: </strong>}
-            {children}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
 };
 
 export default function PricingPlan() {
