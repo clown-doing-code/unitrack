@@ -13,14 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Icons } from "../icons";
 import Link from "next/link";
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,17 +25,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import LoadingButton from "../loading-btn";
+import LoadingButton from "../buttons/loading-btn";
 import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/hooks/use-toast";
+import { ErrorContext } from "@better-fetch/fetch";
+import { useRouter } from "next/navigation";
 
 export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const [showDialog, setShowDialog] = useState(false);
   const [pending, setPending] = useState(false);
   const { toast } = useToast();
+  const [pendingGoogle, setPendingGoogle] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
@@ -69,7 +64,7 @@ export function SignUpForm({
         onSuccess: () => {
           toast({
             variant: "success",
-            title: "¡Bienvenido al club de los desesperados!",
+            title: "¡Increíble! ¡Funcionó a la primera!",
             description:
               "Tu cuenta ha sido creada. Revisa tu email para el link de verificación... si es que recuerdas revisar tu correo más que tus redes sociales.",
           });
@@ -105,11 +100,42 @@ export function SignUpForm({
     setPending(false);
   };
 
+  const handleSignInWithGoogle = async () => {
+    await authClient.signIn.social(
+      {
+        provider: "google",
+      },
+      {
+        onRequest: () => {
+          setPendingGoogle(true);
+        },
+        onSuccess: async () => {
+          router.push("/");
+          router.refresh();
+        },
+        onError: (ctx: ErrorContext) => {
+          toast({
+            title: "Fracaso exitosamente logrado",
+            description:
+              "Error detectado. Nuestros desarrolladores están actualmente en posición fetal debajo de sus escritorios.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+    setPendingGoogle(false);
+  };
+
   return (
     <div className={cn("grid gap-6", className)} {...props}>
       <Card>
         <CardHeader className="space-y-1">
-          <CardTitle className="text-center text-2xl">Bienvenido</CardTitle>
+          <CardTitle className="text-center text-2xl">
+            Bienvenido a{" "}
+            <a href="/" className="font-bold italic hover:underline">
+              UniTrack
+            </a>
+          </CardTitle>
           <CardDescription className="text-center">
             Inicia sesión con tu cuenta de Google{" "}
           </CardDescription>
@@ -121,10 +147,15 @@ export function SignUpForm({
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid grid-cols-1 gap-3">
-            <Button variant="reverse" className="w-full">
+            <LoadingButton
+              pending={pendingGoogle}
+              onClick={handleSignInWithGoogle}
+              variant="reverse"
+              className="w-full"
+            >
               <Icons.google className="mr-2 h-4 w-4" />
               Inicia sesión con Google
-            </Button>
+            </LoadingButton>
           </div>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -207,9 +238,7 @@ export function SignUpForm({
               />
 
               <div className="pt-4">
-                <LoadingButton pending={pending}>
-                  Acepto mi destino académico
-                </LoadingButton>
+                <LoadingButton pending={pending}>Continuar</LoadingButton>
               </div>
             </form>
           </Form>
@@ -218,7 +247,7 @@ export function SignUpForm({
           <div className="w-full text-sm">
             ¿Ya tienes una cuenta?{" "}
             <Link
-              href="/auth/sign-in"
+              href="/sign-in"
               className="underline underline-offset-4 hover:text-primary"
             >
               Inicia sesión
